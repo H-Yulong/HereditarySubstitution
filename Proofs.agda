@@ -49,42 +49,42 @@ embSp-cong (x , sp) p = embSp-cong sp (app-t p refl-t)
 
 -- renamings commutes with embNf
 mutual
-  renNf≡ : ∀{Γ Δ α} → (t : Nf Γ α) → (ρ : Ren Γ Δ) → 
+  renNf-emb : ∀{Γ Δ α} → (t : Nf Γ α) → (ρ : Ren Γ Δ) → 
     embNf (renNf t ρ) ≡ ren (embNf t) ρ
-  renNf≡ tt ρ = refl
-  renNf≡ (lam t) ρ rewrite renNf≡ t (ext ρ) = refl
-  renNf≡ (neu (x , sp)) ρ = renSp≡ sp (var x) ρ
+  renNf-emb tt ρ = refl
+  renNf-emb (lam t) ρ rewrite renNf-emb t (ext ρ) = refl
+  renNf-emb (neu (x , sp)) ρ = renSp-emb sp (var x) ρ
 
-  renSp≡ : ∀{Γ Δ α β} → (sp : Sp Γ α β) → (t : Tm Γ α) → (ρ : Ren Γ Δ) → 
+  renSp-emb : ∀{Γ Δ α β} → (sp : Sp Γ α β) → (t : Tm Γ α) → (ρ : Ren Γ Δ) → 
     embSp (renSp sp ρ) (ren t ρ) ≡ ren (embSp sp t) ρ
-  renSp≡ ∙ t ρ = refl
-  renSp≡ (s , sp) t ρ rewrite renNf≡ s ρ = trans refl (renSp≡ sp (app t (embNf s)) ρ)
+  renSp-emb ∙ t ρ = refl
+  renSp-emb (s , sp) t ρ rewrite renNf-emb s ρ = trans refl (renSp-emb sp (app t (embNf s)) ρ)
 
--- appSp interacts with embSp, embNf
-appSp≡ : ∀{Γ α β γ} → (sp : Sp Γ α (β ⇒ γ)) → (u : Tm Γ α) → (t : Nf Γ β) → 
+-- appSp preserves equivalence
+appSp-comp : ∀{Γ α β γ} → (sp : Sp Γ α (β ⇒ γ)) → (u : Tm Γ α) → (t : Nf Γ β) → 
   app (embSp sp u) (embNf t) ≡ embSp (appSp sp t) u
-appSp≡ ∙ u t = refl
-appSp≡ (x , sp) u t = appSp≡ sp (app u (embNf x)) t
+appSp-comp ∙ u t = refl
+appSp-comp (x , sp) u t = appSp-comp sp (app u (embNf x)) t
 
 -- η-expansion preserves equivalence
 ne2nf-comp : ∀{Γ α} → (u : Ne Γ α) → embNf (ne2nf u) ≡t embNe u 
 ne2nf-comp {α = ι} u = refl-t
 ne2nf-comp {α = α ⇒ β} (x , sp) = 
     tran-t (lam-t (ne2nf-comp (vs x , appSp (renSp sp vs) (ne2nf (vz , ∙))))) 
-  (tran-t (lam-t (sym-t (Tm≡ (appSp≡ (renSp sp vs) (var (vs x)) (ne2nf (vz , ∙))))))
-  (tran-t (lam-t (app-t (Tm≡ (renSp≡ sp (var x) vs)) (ne2nf-comp (vz , ∙)))) ≡η))
+  (tran-t (lam-t (sym-t (Tm≡ (appSp-comp (renSp sp vs) (var (vs x)) (ne2nf (vz , ∙))))))
+  (tran-t (lam-t (app-t (Tm≡ (renSp-emb sp (var x) vs)) (ne2nf-comp (vz , ∙)))) ≡η))
 
 nvar-comp : ∀{Γ α} → (x : Var Γ α) → embNf (nvar x) ≡t var x
 nvar-comp x = ne2nf-comp (x , ∙)
 
--- the four hereditary substitution functions preserves ≡t
+-- the four hereditary substitution functions preserve equivalence
 mutual
   []-comp : ∀{Γ Δ α β} → (t : Nf Γ α)→ (ρ : Ren Γ (Δ , β)) → (u : Nf Δ β) → 
     embNf (t [ ρ , u ]) ≡t ((embNf t) [ ρ , embNf u ]Tm)
   []-comp tt ρ u = refl-t
   []-comp (lam t) ρ u = 
     lam-t 
-      (coerce (renNf≡ u vs) 
+      (coerce (renNf-emb u vs) 
         (λ z → embNf (t [ sw ∘ ext ρ , renNf u vs ]) ≡t ((embNf t) [ (sw ∘ ext ρ) , z ]Tm)) 
         ([]-comp t (sw ∘ ext ρ) (wkNf u)))
   []-comp (neu (x , sp)) ρ u with ρ x in eq
@@ -111,7 +111,7 @@ mutual
     embNf (napp s t) ≡t app (embNf s) (embNf t)
   napp-comp (lam s) t = tran-t ([]-comp s id t) (sym-t ≡β)
 
-
+-- The completeness theorem
 completeness : ∀{Γ α} → (t : Tm Γ α) → embNf (nf t) ≡t t
 completeness tt = refl-t
 completeness (var x) = nvar-comp x
@@ -121,10 +121,10 @@ completeness (app s t) = tran-t (napp-comp (nf s) (nf t)) (app-t (completeness s
 
 -------------------------------------
 
-{- Proof of soundness: equivalent terms has equal normal forms -}
+{- Proof of soundness: equivalent terms have equal normal forms -}
 
 -- There are two main goals here.
--- 1. Show the η-expansion identity.
+-- 1. Show the η-expansion identity: a term and its η-expanded version have the same normal form.
 -- 2. Show that substitution on terms commutes with hereditary substitutions on normal forms.
 
 -------------------------------------
@@ -172,19 +172,19 @@ ne2nf-[]-vs {β = β1 ⇒ β2} {x = x} {sp} {ρ} {u} {y} p rewrite p
 nvar-wk-sw : ∀{Γ α β} → wkNf {Γ , α} {β} (nvar vz) ≡ renNf (nvar vz) sw
 nvar-wk-sw {Γ} {α} {β} = trans (nvar-ren vz vs) (sym (nvar-ren vz sw))
 
--- the η-expansion identity set
+-- the η-expansion identity lemma, in a more general case
 mutual 
   η-eq-[] : ∀{Γ Δ α β}(u : Nf Γ α)(ρ : Ren Γ (Δ , β)) → 
     u [ ext {α = β} vs ∘ ρ , nvar vz ] ≡ renNf u ρ
   η-eq-[] tt ρ = refl
   η-eq-[] (lam u) ρ = cong lam 
-    -- = u [ sw ∘ ext(ext vs) ∘ ext ρ , wkNf (nvar vz) ] = u [ sw ∘ ext(ext vs) ∘ ext ρ , renNf (nvar vz) sw ]
+    -- = u [ sw ∘ ext(ext vs) ∘ ext ρ , wkNf (nvar vz) ]
     (trans (cong (λ z → u [ sw ∘ ext (ext vs ∘ ρ) , z ]) nvar-wk-sw)
     -- = u [ sw ∘ ext(ext vs) ∘ ext ρ , renNf (nvar vz) sw ] 
     (trans ([]-ren-cong {t = u} {σ = ext sw ∘ ext vs ∘ sw ∘ ext ρ}
       -- proof of that two renamings are equal 
       (trans (cong sw (ext-∘ {σ = ext vs})) 
-      (trans (sym wk2-sw-assoc) 
+      (trans (sym ext2-sw) 
       (trans (ext-∀ (sw-ext {ρ = id})) ext-∘)))) 
     -- = u [ ext sw ∘ ext vs ∘ sw ∘ ext ρ , ... ] 
     (trans ([]-post-ren u _ _ _) 
@@ -250,6 +250,7 @@ mutual
           (trans appSp-<> (cong₂ appSp wk-<sw∘ext> (ne2nf-[]-vs refl))))))
       (lam-$-id {sp = sp < ρ , u >}) 
 
+-- the η-expansion identity lemma
 nf-η : ∀{Γ α β} → (u : Tm Γ (α ⇒ β)) → lam (napp (nf (wk u)) (nvar vz)) ≡ nf u
 nf-η u with nf u in eq
 ... | lam v = cong lam 

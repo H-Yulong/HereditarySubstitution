@@ -23,7 +23,7 @@ ext-id : ∀{Γ α β}{x : Var (Γ , α) β} → (ext id) x ≡ id x
 ext-id {x = vz} = refl
 ext-id {x = vs x} = refl
 
--- ext commutes with compose
+-- ext distributes over compose
 ext-∘ : ∀{Γ Δ Ω α β}{ρ : Ren Γ Δ}{σ : Ren Δ Ω} → 
    {x : Var (Γ , α) β} → (ext (σ ∘ ρ)) x ≡ (ext σ ∘ ext ρ) x
 ext-∘ {x = vz} = refl
@@ -55,11 +55,11 @@ sw-3-perm {x = vs (vs (vs x))} = refl
 
 -- sw commutes with 2-var ext
 -- (since the extension does not affect the first two variables)
-wk2-sw-assoc : ∀{Γ Δ α0 α1 β}{σ : Ren Γ Δ}{x : Var (Γ , α1 , α0) β} → 
+ext2-sw : ∀{Γ Δ α0 α1 β}{σ : Ren Γ Δ}{x : Var (Γ , α1 , α0) β} → 
   ((ext (ext σ)) ∘ sw) x ≡ (sw ∘ ext (ext σ)) x
-wk2-sw-assoc {x = vz} = refl
-wk2-sw-assoc {x = vs vz} = refl
-wk2-sw-assoc {x = vs (vs x)} = refl
+ext2-sw {x = vz} = refl
+ext2-sw {x = vs vz} = refl
+ext2-sw {x = vs (vs x)} = refl
 
 -------------------------------------
 
@@ -132,6 +132,7 @@ renNe-lem : ∀{Γ Δ} → (t : Ne Γ ι) → (ρ : Ren Γ Δ) →
   renNf (neu t) ρ ≡ neu (renNe t ρ)
 renNe-lem (x , sp) ρ = refl
 
+-- η-expansion respects renaming
 mutual
   nvar-ren : ∀{Γ Δ α} → (x : Var Γ α) → (ρ : Ren Γ Δ) → 
     renNf (nvar x) ρ ≡ nvar (ρ x)
@@ -171,7 +172,8 @@ neu[]-vs p rewrite p = refl
 
 -------------------------------------
 
-{- Five key lemmas -}
+{- Six key lemmas -}
+-- used in soundness proofs
 
 -- 1. The congruence rule
 mutual
@@ -226,7 +228,7 @@ mutual
       ... | vz = refl
       ... | vs y = refl  
   []-post-ren (neu (x , sp)) ρ u σ with ρ x
-  ... | vz = $-ren≡ u sp ρ u σ
+  ... | vz = $-ren u sp ρ u σ
   ... | vs y = cong (λ z → neu (σ y , z)) (<>-post-ren sp ρ u σ)
 
   <>-post-ren : ∀{Γ Δ Ω α β γ}(sp : Sp Γ α γ)(ρ : Ren Γ (Δ , β))(u : Nf Δ β)(σ : Ren Δ Ω) →
@@ -234,32 +236,34 @@ mutual
   <>-post-ren ∙ ρ u σ = refl
   <>-post-ren (t , sp) ρ u σ = cong₂ _,_ ([]-post-ren t ρ u σ) (<>-post-ren sp ρ u σ)
 
-  $-ren≡ : ∀{Γ Δ Ω α β γ}(t : Nf Δ α)(sp : Sp Γ α γ)(ρ : Ren Γ (Δ , β))(u : Nf Δ β)(σ : Ren Δ Ω) → 
+  $-ren : ∀{Γ Δ Ω α β γ}(t : Nf Δ α)(sp : Sp Γ α γ)(ρ : Ren Γ (Δ , β))(u : Nf Δ β)(σ : Ren Δ Ω) → 
     ((renNf t σ) $ (sp < ext σ ∘ ρ , renNf u σ >)) ≡ renNf (t $ (sp < ρ , u >)) σ
-  $-ren≡ t ∙ ρ u σ = refl
-  $-ren≡ t (s , sp) ρ u σ = 
+  $-ren t ∙ ρ u σ = refl
+  $-ren t (s , sp) ρ u σ = 
     trans 
       (cong (λ z → z $ (sp < ext σ ∘ ρ , renNf u σ >)) 
-        (trans (cong (λ z → napp (renNf t σ) z) ([]-post-ren s ρ u σ)) (napp-ren≡ t (s [ ρ , u ]) σ)))
-    ($-ren≡ (napp t (s [ ρ , u ])) sp ρ u σ)
+        (trans (cong (λ z → napp (renNf t σ) z) ([]-post-ren s ρ u σ)) (napp-ren t (s [ ρ , u ]) σ)))
+    ($-ren (napp t (s [ ρ , u ])) sp ρ u σ)
 
-  napp-ren≡ : ∀{Γ Δ α β}(s : Nf Γ (α ⇒ β))(t : Nf Γ α)(ρ : Ren Γ Δ) →
+  napp-ren : ∀{Γ Δ α β}(s : Nf Γ (α ⇒ β))(t : Nf Γ α)(ρ : Ren Γ Δ) →
     napp (renNf s ρ) (renNf t ρ) ≡ renNf (napp s t) ρ
-  napp-ren≡ (lam s) t ρ = trans ([]-pre-ren {t = s}) ([]-post-ren s id t ρ)
+  napp-ren (lam s) t ρ = trans ([]-pre-ren {t = s}) ([]-post-ren s id t ρ)
 
 -------------------------------------
 
--- Now we can show that normalization commutes with renaming
+-- 4. Normalization commutes with renaming
 nf-ren : ∀{Γ Δ α} → (t : Tm Γ α) → (ρ : Ren Γ Δ) →
   nf (ren t ρ) ≡ renNf (nf t) ρ
 nf-ren tt ρ = refl
 nf-ren {α = α} (var x) ρ = sym (nvar-ren x ρ)
 nf-ren (lam t) ρ rewrite nf-ren t (ext ρ) = refl
-nf-ren (app s t) ρ = trans (cong₂ napp (nf-ren s ρ) (nf-ren t ρ)) (napp-ren≡ (nf s) (nf t) ρ)
+nf-ren (app s t) ρ = trans (cong₂ napp (nf-ren s ρ) (nf-ren t ρ)) (napp-ren (nf s) (nf t) ρ)
 
 -------------------------------------
 
--- 4. The empty substitution rule
+-- 5. The empty substitution rule
+-- Weaken a term then do a substitution on the weakened variable
+-- is the same as doing nothing
 mutual
   []-vs-id : ∀{Γ Δ α β}(u : Nf Γ α)(ρ : Ren Γ Δ)(t : Nf Δ β) → 
     u [ vs ∘ ρ , t ] ≡ renNf u ρ
@@ -278,7 +282,8 @@ mutual
   <>-vs-id (x , sp) ρ t = cong₂ _,_ ([]-vs-id _ _ _) (<>-vs-id _ _ _)
 
 
--- 5. The commutation rule
+-- 6. The commutative rule
+-- This is about how to correctly swap the order of two consecutive substitutions
 
 -- a special case of post-renaming rule
 []-post-ren-wk : ∀{Γ Δ α β γ}{t : Nf Γ α}{ρ : Ren Γ (Δ , β)}{u : Nf Δ β} → 
@@ -287,7 +292,7 @@ mutual
   trans (sym ([]-post-ren t _ _ _)) 
   (trans ([]-ren-cong {t = t} (sw-ext {ρ = ρ})) (sym ([]-pre-ren {t = t})))
 
--- the commutation lemma
+-- the commutative lemma
 mutual
   []-comm : 
     ∀{Γ Δ Ω α β1 β2}
@@ -328,7 +333,6 @@ mutual
       lem2 {x = vz} = refl
       lem2 {x = vs vz} = refl
       lem2 {x = vs (vs x)} = refl
-
   []-comm (neu (x , sp)) ρ t σ u with ρ x
   ... | vz rewrite 
       $-comm t (sp < ρ , t >) σ u 

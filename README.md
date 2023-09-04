@@ -1,5 +1,5 @@
 # Hereditary Substitution
-A formalization of hereditary substitution for STLC, using a "continuation-passing style" single-variable substitution to show termination.
+A formalization of hereditary substitution for STLC, in a "continuation-passing" style that makes it structurally recursive.
 
 ### Repo
 Basic.agda - small library of basic things
