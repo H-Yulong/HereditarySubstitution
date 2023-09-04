@@ -202,7 +202,7 @@ mutual
   η-eq-<> ∙ ρ = refl
   η-eq-<> (s , sp) ρ = cong₂ _,_ (η-eq-[] s ρ) (η-eq-<> sp ρ)
 
-  η-eq-$ : ∀{Γ α β}(x : Var (Γ , α) α)(sp : Sp (Γ , α) α β)(sp' : Sp (Γ , α) β ι) → 
+  η-eq-$ : ∀{Γ α β}(x : Var Γ α)(sp : Sp Γ α β)(sp' : Sp Γ β ι) → 
     (ne2nf (x , sp)) $ sp' ≡ ne2nf (x , sp ++ sp')
   η-eq-$ x sp ∙ rewrite ++-z {sp = sp} = refl
   η-eq-$ x sp (s' , sp') = 
@@ -213,7 +213,7 @@ mutual
 -- used ne2nf-[]-vz mutual recursively here 
 -- to show that (nvar vz) [ id , s ] ≡ s
 -- it seems natural to do this here, not sure why / how to explain
-  η-eq-napp : ∀{Γ α β γ}(x : Var (Γ , α) α)(sp : Sp (Γ , α) α (β ⇒ γ))(s : Nf (Γ , α) β) → 
+  η-eq-napp : ∀{Γ α β γ}(x : Var Γ α)(sp : Sp Γ α (β ⇒ γ))(s : Nf Γ β) → 
     napp (ne2nf (x , sp)) s ≡ ne2nf (x , appSp sp s)
   η-eq-napp x sp s = 
     trans (ne2nf-[]-vs refl) 
@@ -290,4 +290,32 @@ soundness (sym-t p) = sym (soundness p)
 soundness (tran-t p p') = trans (soundness p) (soundness p')
 soundness (lam-t p) rewrite soundness p = refl
 soundness (app-t p p') rewrite soundness p | soundness p' = refl
+
+-------------------------------------
+
+-- Normalization is idempotent on terms
+idem : ∀{Γ α}(t : Tm Γ α) → nf (embNf (nf t)) ≡ nf t
+idem t = soundness (completeness t)
+
+mutual 
+  -- Normalization is idempotent on normal forms
+  embNf-nf : ∀{Γ α}(t : Nf Γ α) → nf (embNf t) ≡ t
+  embNf-nf tt = refl
+  embNf-nf (lam t) = cong lam (embNf-nf t)
+  embNf-nf (neu (x , ∙)) = refl
+  embNf-nf (neu (x , (s , sp))) = 
+    trans (embSp-nf (app (var x) (embNf s)) sp) 
+    (trans (cong (λ z → z $ sp) (ne2nf-[]-vs refl)) 
+    (trans (η-eq-$ x (_ , ∙) sp) 
+    (cong (λ z → neu (x , (z , sp))) (trans (ne2nf-[]-vz refl) (embNf-nf s)))))
+
+  embSp-nf : ∀{Γ α β}(t : Tm Γ α)(sp : Sp Γ α β) → nf (embSp sp t) ≡ (nf t) $ sp
+  embSp-nf t ∙ = refl
+  embSp-nf t (s , sp) = 
+    trans (embSp-nf (app t (embNf s)) sp) 
+    (cong (λ z → napp (nf t) z $ sp) (embNf-nf s))
+
+-- Hence, uniqueness of normal forms
+unique : ∀{Γ α} → (t1 t2 : Nf Γ α) → embNf t1 ≡t embNf t2 → t1 ≡ t2
+unique t1 t2 p = trans (sym (embNf-nf t1)) (trans (soundness p) (embNf-nf t2))
  
