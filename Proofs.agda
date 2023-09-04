@@ -232,7 +232,7 @@ mutual
   lam-$-id {β = β} {u = lam u} {sp = s , sp} = 
     trans  
       (cong lam 
-        (cong₂ _$_ {u = appSp (wkSp sp) (nvar vz)} (napp-ren≡ (lam u) s vs) refl)) 
+        (cong₂ _$_ {u = appSp (wkSp sp) (nvar vz)} (napp-ren (lam u) s vs) refl)) 
       (lam-$-id {u = napp (lam u) s} {sp = sp})
 
   -- As you can see, it needs ne2nf-[]-vs to show that (nvar vz) [ sw ∘ ext ρ , u ] = nvar vz,
