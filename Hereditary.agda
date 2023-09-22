@@ -178,5 +178,9 @@ t2 = var vz
 t3 : Tm (∙ , ι ⇒ ι , (ι ⇒ ι) ⇒ ι ⇒ ι) (ι ⇒ ι)
 t3 = app (var vz) (var (vs vz))  
 
+-- (f , g) ⊢ (λh. g h) f 
+t4 : Tm (∙ , ι ⇒ ι , (ι ⇒ ι) ⇒ ι ⇒ ι) (ι ⇒ ι)
+t4 = app (lam (app (var (vs vz)) (var vz))) (var (vs vz))
+
 n1 : ∀{α β} → Nf (∙ , α , β) (ι ⇒ ι)
 n1 = renNf (lam (neu (vz , ∙))) (ext vs)

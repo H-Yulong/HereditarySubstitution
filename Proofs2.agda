@@ -1,23 +1,29 @@
-module Proofs where
+module Proofs2 where
 
 open import Hereditary
 open import Lemmas
 
 -------------------------------------
 
+-- Updated version of proofs,
+-- using inverses of β and η, removed sym.
+
 {- βη-equality -}
+infixr 20 _=>_
+infixl 20 _-$-_
 data _≡t_ : ∀{Γ α} → Tm Γ α → Tm Γ α → Set where
   ≡β : ∀{Γ α β}{t : Tm (Γ , α) β}{u : Tm Γ α} → app (lam t) u ≡t (t [ u ]0)
-  ≡η : ∀{Γ α β}{t : Tm Γ (α ⇒ β)} → lam (app (wk t) (var vz)) ≡t t
-  -- reflexive, symmetry, transitivity
-  refl-t : ∀{Γ α}{t : Tm Γ α} → t ≡t t
-  sym-t : ∀{Γ α}{t u : Tm Γ α} → t ≡t u → u ≡t t  
-  tran-t : ∀{Γ α}{t u v : Tm Γ α} → t ≡t u → u ≡t v → t ≡t v
+  ≡η : ∀{Γ α β}{t : Tm Γ (α ⇒ β)} → t ≡t lam (app (wk t) (var vz)) 
+  -- inverses
+  ≡β⁻¹ : ∀{Γ α β}{t : Tm (Γ , α) β}{u : Tm Γ α} → (t [ u ]0) ≡t app (lam t) u
+  ≡η⁻¹ : ∀{Γ α β}{t : Tm Γ (α ⇒ β)} → lam (app (wk t) (var vz)) ≡t t
+  -- reflexive, transitivity
+  idᵗ : ∀{Γ α}{t : Tm Γ α} → t ≡t t
+  _=>_ : ∀{Γ α}{t u v : Tm Γ α} → t ≡t u → u ≡t v → t ≡t v
   -- congruence under lam and app
-  lam-t : ∀{Γ α β}{t u : Tm (Γ , α) β} → t ≡t u → lam t ≡t lam u
-  app-t : ∀{Γ α β}{t t' : Tm Γ (α ⇒ β)}{u u' : Tm Γ α} → 
+  λt : ∀{Γ α β}{t u : Tm (Γ , α) β} → t ≡t u → lam t ≡t lam u
+  _-$-_ : ∀{Γ α β}{t t' : Tm Γ (α ⇒ β)}{u u' : Tm Γ α} → 
       t ≡t t' → u ≡t u' → app t u ≡t app t' u'
-
 
 {- Embedding of normal forms into terms -}
 mutual
@@ -35,17 +41,18 @@ mutual
 
 -------------------------------------
 
+
 {- Proof of completeness: terms are equivalent to their normal forms -}
 
 -- equal terms are equivalent
 Tm≡ : ∀{Γ α}{t u : Tm Γ α} → t ≡ u → t ≡t u
-Tm≡ refl = refl-t
+Tm≡ refl = idᵗ
 
 -- congruence of terms for embSp
 embSp-cong : ∀{Γ α β}{t u : Tm Γ α} → (sp : Sp Γ α β) → 
   t ≡t u → embSp sp t ≡t embSp sp u 
 embSp-cong ∙ p = p
-embSp-cong (x , sp) p = embSp-cong sp (app-t p refl-t)
+embSp-cong (x , sp) p = embSp-cong sp (p -$- idᵗ)
 
 -- renamings commutes with embNf
 mutual
@@ -62,17 +69,21 @@ mutual
 
 -- appSp preserves equivalence
 appSp-comp : ∀{Γ α β γ} → (sp : Sp Γ α (β ⇒ γ)) → (u : Tm Γ α) → (t : Nf Γ β) → 
-  app (embSp sp u) (embNf t) ≡ embSp (appSp sp t) u
+  embSp (appSp sp t) u ≡ app (embSp sp u) (embNf t)
 appSp-comp ∙ u t = refl
 appSp-comp (x , sp) u t = appSp-comp sp (app u (embNf x)) t
 
+
 -- η-expansion preserves equivalence
 ne2nf-comp : ∀{Γ α} → (u : Ne Γ α) → embNf (ne2nf u) ≡t embNe u 
-ne2nf-comp {α = ι} u = refl-t
+ne2nf-comp {α = ι} u = idᵗ
 ne2nf-comp {α = α ⇒ β} (x , sp) = 
-    tran-t (lam-t (ne2nf-comp (vs x , appSp (renSp sp vs) (ne2nf (vz , ∙))))) 
-  (tran-t (lam-t (sym-t (Tm≡ (appSp-comp (renSp sp vs) (var (vs x)) (ne2nf (vz , ∙))))))
-  (tran-t (lam-t (app-t (Tm≡ (renSp-emb sp (var x) vs)) (ne2nf-comp (vz , ∙)))) ≡η))
+  (λt (
+    ne2nf-comp _ 
+    => Tm≡ (appSp-comp (wkSp sp) _ _) 
+    => ((Tm≡ (renSp-emb sp _ _)) -$- (ne2nf-comp _)))
+  ) 
+  => ≡η⁻¹
 
 nvar-comp : ∀{Γ α} → (x : Var Γ α) → embNf (nvar x) ≡t var x
 nvar-comp x = ne2nf-comp (x , ∙)
@@ -81,42 +92,45 @@ nvar-comp x = ne2nf-comp (x , ∙)
 mutual
   []-comp : ∀{Γ Δ α β} → (t : Nf Γ α)→ (ρ : Ren Γ (Δ , β)) → (u : Nf Δ β) → 
     embNf (t [ ρ , u ]) ≡t ((embNf t) [ ρ , embNf u ]Tm)
-  []-comp tt ρ u = refl-t
+  []-comp tt ρ u = idᵗ
   []-comp (lam t) ρ u = 
-    lam-t 
+    λt 
       (coerce (renNf-emb u vs) 
         (λ z → embNf (t [ sw ∘ ext ρ , renNf u vs ]) ≡t ((embNf t) [ (sw ∘ ext ρ) , z ]Tm)) 
         ([]-comp t (sw ∘ ext ρ) (wkNf u)))
   []-comp (neu (x , sp)) ρ u with ρ x in eq
   ... | vz rewrite eq = 
-    tran-t ($-comp u (sp < ρ , u >)) 
-    (tran-t (embSp-cong (sp < ρ , u >) (sym-t (Tm≡ ([]Tm-vz {ρ = ρ} eq)))) 
-    (<>-comp sp ρ u (var x)))
+    ($-comp u (sp < ρ , u >)) 
+    => embSp-cong (sp < ρ , u >) (Tm≡ (sym ([]Tm-vz {ρ = ρ} eq))) 
+    => <>-comp sp ρ u (var x)
   ... | vs y = 
-    tran-t (embSp-cong (sp < ρ , u >) (sym-t (Tm≡ ([]Tm-vs {ρ = ρ} eq)))) (<>-comp sp ρ u (var x))
+    embSp-cong (sp < ρ , u >) (Tm≡ (sym ([]Tm-vs {ρ = ρ} {t = embNf u} eq))) 
+    => <>-comp sp ρ u (var x)
 
   <>-comp : ∀{Γ Δ α β γ} → (sp : Sp Γ α γ) → (ρ : Ren Γ (Δ , β)) → (u : Nf Δ β) → 
     (z : Tm Γ α) → embSp (sp < ρ , u >) (z [ ρ , embNf u ]Tm) ≡t ((embSp sp z) [ ρ , embNf u ]Tm)
-  <>-comp ∙ ρ u z = refl-t
+  <>-comp ∙ ρ u z = idᵗ
   <>-comp (t , sp) ρ u z = 
-    tran-t (embSp-cong (sp < ρ , u >) (app-t refl-t ([]-comp t ρ u))) 
-    (<>-comp sp ρ u (app z (embNf t))) 
+    embSp-cong (sp < ρ , u >) (idᵗ -$- ([]-comp t ρ u))
+    => <>-comp sp ρ u (app z (embNf t))
 
   $-comp : ∀{Γ α β} → (t : Nf Γ α) → (sp : Sp Γ α β) →
     embNf (t $ sp) ≡t embSp sp (embNf t)
-  $-comp t ∙ = refl-t
-  $-comp t (u , sp) = tran-t ($-comp (napp t u) sp) (embSp-cong sp (napp-comp t u))
+  $-comp t ∙ = idᵗ
+  $-comp t (u , sp) = ($-comp (napp t u) sp) => (embSp-cong sp (napp-comp t u))
 
   napp-comp : ∀{Γ α β} → (s : Nf Γ (α ⇒ β)) → (t : Nf Γ α) → 
     embNf (napp s t) ≡t app (embNf s) (embNf t)
-  napp-comp (lam s) t = tran-t ([]-comp s id t) (sym-t ≡β)
+  napp-comp (lam s) t = ([]-comp s id t) => ≡β⁻¹
 
 -- The completeness theorem
 completeness : ∀{Γ α} → (t : Tm Γ α) → embNf (nf t) ≡t t
-completeness tt = refl-t
+completeness tt = idᵗ
 completeness (var x) = nvar-comp x
-completeness (lam t) = lam-t (completeness t)
-completeness (app s t) = tran-t (napp-comp (nf s) (nf t)) (app-t (completeness s) (completeness t))
+completeness (lam t) = λt (completeness t)
+completeness (app s t) = (napp-comp (nf s) (nf t)) => ((completeness s) -$- (completeness t))
+
+
 
 -------------------------------------
 
@@ -280,15 +294,15 @@ nf-sub (app s t) ρ u =
     (cong₂ napp (nf-sub s ρ u) (nf-sub t ρ u))
 
 -------------------------------------
-
 soundness : ∀{Γ α}{t u : Tm Γ α} → t ≡t u → nf t ≡ nf u
+soundness {t = t} ≡η = sym (nf-η t)
+soundness {u = u} ≡η⁻¹ = nf-η u
 soundness {t = app (lam t) u} ≡β = nf-sub t id u
-soundness {u = u} ≡η = nf-η u
-soundness refl-t = refl
-soundness (sym-t p) = sym (soundness p)
-soundness (tran-t p p') = trans (soundness p) (soundness p')
-soundness (lam-t p) rewrite soundness p = refl
-soundness (app-t p p') rewrite soundness p | soundness p' = refl
+soundness {u = app (lam t) u} ≡β⁻¹ = sym (nf-sub t id u)
+soundness idᵗ = refl
+soundness (p => p') = trans (soundness p) (soundness p')
+soundness (λt p) rewrite soundness p = refl
+soundness (p -$- p') rewrite soundness p | soundness p' = refl
 
 -------------------------------------
 
@@ -317,3 +331,51 @@ mutual
 -- Hence, uniqueness of normal forms
 unique : ∀{Γ α} → (t1 t2 : Nf Γ α) → embNf t1 ≡t embNf t2 → t1 ≡ t2
 unique t1 t2 p = trans (sym (embNf-nf t1)) (trans (soundness p) (embNf-nf t2))
+ 
+-------------------------------------
+
+-- Investigation on completeness derivations
+
+c1 : embNf (nf t1) ≡t t1
+c1 = idᵗ
+
+c2 : t2 ≡t embNf (nf t2)
+c2 = ≡η => λt ((idᵗ -$- ≡η) => ≡η)
+-- \g. \x. f (\y. g y) x = \g. f (\y. g y) = \g. f g = f
+-- λt (≡η⁻¹ => (app-t idᵗ ≡η⁻¹)) => ≡η⁻¹
+
+c2' : t2 ≡t embNf (nf t2)
+c2' = ≡η => λt (≡η => λt (idᵗ -$- ≡η -$- idᵗ))
+
+inv : ∀{Γ α}{t u : Tm Γ α} → t ≡t u → u ≡t t
+inv ≡β = ≡β⁻¹
+inv ≡η = ≡η⁻¹
+inv ≡β⁻¹ = ≡β
+inv ≡η⁻¹ = ≡η
+inv idᵗ = idᵗ
+inv (p => p') = inv p' => inv p
+inv (λt p) = λt (inv p)
+inv (p -$- p') = (inv p) -$- (inv p')
+
+-- A hack of simplifying derivation trees
+normPf : ∀{Γ α}{t1 t2 : Tm Γ α} → t1 ≡t t2 → t1 ≡t t2
+normPf ≡β = ≡β
+normPf ≡η = ≡η
+normPf ≡β⁻¹ = ≡β⁻¹
+normPf ≡η⁻¹ = ≡η⁻¹
+normPf idᵗ = idᵗ
+normPf (p1 => p2) with normPf p1 
+normPf (p1 => p2) | idᵗ = normPf p2
+normPf (p1 => p2) | p1' with normPf p2
+normPf (p1 => p2) | p1' | idᵗ = p1'
+normPf (p1 => p2) | p1' | p2' = p1' => p2'
+normPf (λt p) with normPf p
+... | idᵗ = idᵗ
+... | p' = λt p'
+normPf (p1 -$- p2) with normPf p1 | normPf p2
+... | idᵗ | idᵗ = idᵗ
+... | p1' | p2' = p1' -$- p2'
+
+transform : ∀{Γ α} → (t : Tm Γ α) → t ≡t embNf (nf t)
+transform t = inv (normPf (completeness t))
+
