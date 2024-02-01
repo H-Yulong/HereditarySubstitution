@@ -5,9 +5,7 @@ import Syntax
 
 import Spine
 import Lemmas
-import Proofs
 import ProofsInv
 
 import Stack
--- import Proofs2
-
+import SProof
