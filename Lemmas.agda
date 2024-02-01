@@ -1,6 +1,6 @@
 module Lemmas where
 
-open import Hereditary
+open import Spine
 
 -------------------------------------
 
@@ -65,81 +65,76 @@ ext2-sw {x = vs (vs x)} = refl
 
 {- Renamings acting on terms -}
 
--- renaming congruence under Tm, Nf, Ne, and Sp
+-- renaming congruence under Tm, SNf, Ne, and Sp
 ren-cong : ∀{Γ Δ α}{ρ σ : Ren Γ Δ}{t : Tm Γ α} → 
   (∀{β}{x : Var Γ β} → ρ x ≡ σ x) → ren t ρ ≡ ren t σ 
-ren-cong {t = tt} p = refl
 ren-cong {t = var x} p = cong var p
 ren-cong {t = lam t} p = cong lam (ren-cong (ext-∀ p))
 ren-cong {t = app s t} p = cong₂ app (ren-cong p) (ren-cong p)
 
 mutual 
-  renNf-cong : ∀{Γ Δ α}{ρ σ : Ren Γ Δ}{t : Nf Γ α} → 
-    (∀{β}{x : Var Γ β} → ρ x ≡ σ x) → renNf t ρ ≡ renNf t σ 
-  renNf-cong {t = tt} p = refl
-  renNf-cong {t = lam t} p = cong lam (renNf-cong (ext-∀ p))
-  renNf-cong {t = neu (x , sp)} p = cong₂ (λ z z' → neu (z , z')) p (renSp-cong p)
+  renSNf-cong : ∀{Γ Δ α}{ρ σ : Ren Γ Δ}{t : SNf Γ α} → 
+    (∀{β}{x : Var Γ β} → ρ x ≡ σ x) → renSNf t ρ ≡ renSNf t σ 
+  renSNf-cong {t = lam t} p = cong lam (renSNf-cong (ext-∀ p))
+  renSNf-cong {t = neu (x , sp)} p = cong₂ (λ z z' → neu (z , z')) p (renSp-cong p)
 
   renSp-cong : ∀{Γ Δ α β}{ρ σ : Ren Γ Δ}{sp : Sp Γ α β} → 
     (∀{β}{x : Var Γ β} → ρ x ≡ σ x) → renSp sp ρ ≡ renSp sp σ 
   renSp-cong {sp = ∙} p = refl
-  renSp-cong {sp = t , sp} p = cong₂ _,_ (renNf-cong p) (renSp-cong p)
+  renSp-cong {sp = t , sp} p = cong₂ _,_ (renSNf-cong p) (renSp-cong p)
 
 
--- composed renamings are the same as rename twice (for Tm, Nf, Ne, Sp)
+-- composed renamings are the same as rename twice (for Tm, SNf, Ne, Sp)
 ren-∘ : ∀{Γ Δ Ω α}{ρ : Ren Γ Δ}{σ : Ren Δ Ω} → 
   {t : Tm Γ α} → ren t (σ ∘ ρ) ≡ ren (ren t ρ) σ
-ren-∘ {t = tt} = refl
 ren-∘ {t = var x} = refl
 ren-∘ {t = lam t} = cong lam (trans (ren-cong ext-∘) ren-∘)
 ren-∘ {t = app s t} = cong₂ app ren-∘ ren-∘
 
 mutual
-  renNf-∘ : ∀{Γ Δ Ω α}{ρ : Ren Γ Δ}{σ : Ren Δ Ω} → 
-    {t : Nf Γ α} → renNf t (σ ∘ ρ) ≡ renNf (renNf t ρ) σ
-  renNf-∘ {t = tt} = refl
-  renNf-∘ {t = lam t} = cong lam (trans (renNf-cong ext-∘) renNf-∘)
-  renNf-∘ {t = neu (x , sp)} = cong₂ (λ z z' → neu (z , z')) refl renSp-∘
+  renSNf-∘ : ∀{Γ Δ Ω α}{ρ : Ren Γ Δ}{σ : Ren Δ Ω} → 
+    {t : SNf Γ α} → renSNf t (σ ∘ ρ) ≡ renSNf (renSNf t ρ) σ
+  renSNf-∘ {t = lam t} = cong lam (trans (renSNf-cong ext-∘) renSNf-∘)
+  renSNf-∘ {t = neu (x , sp)} = cong₂ (λ z z' → neu (z , z')) refl renSp-∘
 
   renSp-∘ : ∀{Γ Δ Ω α β}{ρ : Ren Γ Δ}{σ : Ren Δ Ω} → 
     {sp : Sp Γ α β} → renSp sp (σ ∘ ρ) ≡ renSp (renSp sp ρ) σ
   renSp-∘ {sp = ∙} = refl
-  renSp-∘ {sp = t , sp} = cong₂ _,_ renNf-∘ renSp-∘
+  renSp-∘ {sp = t , sp} = cong₂ _,_ renSNf-∘ renSp-∘
 
 
 -- identity renaming does nothing
 mutual
-  renNf-id : ∀{Γ α}{u : Nf Γ α} → renNf u id ≡ u
-  renNf-id {u = tt} = refl
-  renNf-id {u = lam u} = cong lam (trans (renNf-cong ext-id) renNf-id)
-  renNf-id {u = neu (x , sp)} rewrite renSp-id {sp = sp} = refl
+  renSNf-id : ∀{Γ α}{u : SNf Γ α} → renSNf u id ≡ u
+  renSNf-id {u = lam u} = cong lam (trans (renSNf-cong ext-id) renSNf-id)
+  renSNf-id {u = neu (x , sp)} rewrite renSp-id {sp = sp} = refl
 
   renSp-id : ∀{Γ α β}{sp : Sp Γ α β} → renSp sp id ≡ sp
   renSp-id {sp = ∙} = refl
-  renSp-id {sp = x , sp} = cong₂ _,_ renNf-id renSp-id
+  renSp-id {sp = x , sp} = cong₂ _,_ renSNf-id renSp-id
 
 -------------------------------------
 
 {- Interaction between renaming and auxiliary functions -}
 
 -- appSp respects reaming
-appSp-ren : ∀{Γ Δ α β γ} → (sp : Sp Γ α (β ⇒ γ)) → (t : Nf Γ β) → (ρ : Ren Γ Δ) → 
-  renSp (appSp sp t) ρ ≡ appSp (renSp sp ρ) (renNf t ρ)
+appSp-ren : ∀{Γ Δ α β γ} → (sp : Sp Γ α (β ⇒ γ)) → (t : SNf Γ β) → (ρ : Ren Γ Δ) → 
+  renSp (appSp sp t) ρ ≡ appSp (renSp sp ρ) (renSNf t ρ)
 appSp-ren ∙ t ρ = refl
 appSp-ren (u , sp) t ρ rewrite appSp-ren sp t ρ = refl
 
-renNe-lem : ∀{Γ Δ} → (t : Ne Γ ι) → (ρ : Ren Γ Δ) → 
-  renNf (neu t) ρ ≡ neu (renNe t ρ)
+renNe-lem : ∀{Γ Δ} → (t : SNe Γ ι) → (ρ : Ren Γ Δ) → 
+  renSNf (neu t) ρ ≡ neu (renSNe t ρ)
 renNe-lem (x , sp) ρ = refl
 
 -- η-expansion respects renaming
 mutual
   nvar-ren : ∀{Γ Δ α} → (x : Var Γ α) → (ρ : Ren Γ Δ) → 
-    renNf (nvar x) ρ ≡ nvar (ρ x)
+    renSNf (nvar x) ρ ≡ nvar (ρ x)
   nvar-ren x ρ = ne2nf-ren (x , ∙) ρ
 
-  ne2nf-ren : ∀{Γ Δ α} → (t : Ne Γ α) → (ρ : Ren Γ Δ) → 
-    renNf (ne2nf t) ρ ≡ ne2nf (renNe t ρ)
+  ne2nf-ren : ∀{Γ Δ α} → (t : SNe Γ α) → (ρ : Ren Γ Δ) → 
+    renSNf (ne2nf t) ρ ≡ ne2nf (renSNe t ρ)
   ne2nf-ren {α = ι} t ρ = renNe-lem t ρ
   ne2nf-ren {α = α ⇒ β} (x , sp) ρ = 
     cong lam
@@ -162,11 +157,11 @@ mutual
   ρ x ≡ vs y → (var x) [ ρ , t ]Tm ≡ var y
 []Tm-vs p rewrite p = refl
 
-neu[]-vz : ∀{Γ Δ α}{x : Var Γ α}{sp : Sp Γ α ι}{u : Nf Δ α}{ρ : Ren Γ (Δ , α)} → 
+neu[]-vz : ∀{Γ Δ α}{x : Var Γ α}{sp : Sp Γ α ι}{u : SNf Δ α}{ρ : Ren Γ (Δ , α)} → 
   ρ x ≡ vz → (u $ (sp < ρ , u >)) ≡ (neu (x , sp)) [ ρ , u ]
 neu[]-vz p rewrite p = refl
 
-neu[]-vs : ∀{Γ Δ α β}{x : Var Γ α}{sp : Sp Γ α ι}{y : Var Δ α}{u : Nf Δ β}{ρ : Ren Γ (Δ , β)} → 
+neu[]-vs : ∀{Γ Δ α β}{x : Var Γ α}{sp : Sp Γ α ι}{y : Var Δ α}{u : SNf Δ β}{ρ : Ren Γ (Δ , β)} → 
   ρ x ≡ (vs y) → neu (y , (sp < ρ , u >)) ≡ (neu (x , sp)) [ ρ , u ]
 neu[]-vs p rewrite p = refl
 
@@ -177,15 +172,14 @@ neu[]-vs p rewrite p = refl
 
 -- 1. The congruence rule
 mutual
-  []-ren-cong : ∀{Γ Δ α β}{t : Nf Γ α}{u : Nf Δ β}{ρ σ : Ren Γ (Δ , β)} → 
+  []-ren-cong : ∀{Γ Δ α β}{t : SNf Γ α}{u : SNf Δ β}{ρ σ : Ren Γ (Δ , β)} → 
     (∀{β}{x : Var Γ β} → ρ x ≡ σ x) → t [ ρ , u ] ≡ t [ σ , u ]
-  []-ren-cong {t = tt} p = refl
   []-ren-cong {t = lam t} p = cong lam ([]-ren-cong {t = t} (sw-ext-∀ p))
   []-ren-cong {t = neu (x , sp)} {u = u} {ρ = ρ} p with ρ x in eq
   ... | vz = trans (cong₂ _$_ refl (<>-ren-cong {sp = sp} p)) (neu[]-vz {sp = sp} (trans (sym p) eq))
   ... | vs y = trans (cong neu (cong₂ _,_ refl (<>-ren-cong p))) (neu[]-vs (trans (sym p) eq))
 
-  <>-ren-cong : ∀{Γ Δ α β γ}{sp : Sp Γ α γ}{u : Nf Δ β}{ρ σ : Ren Γ (Δ , β)} → 
+  <>-ren-cong : ∀{Γ Δ α β γ}{sp : Sp Γ α γ}{u : SNf Δ β}{ρ σ : Ren Γ (Δ , β)} → 
     (∀{β}{x : Var Γ β} → ρ x ≡ σ x) → sp < ρ , u > ≡ sp < σ , u >
   <>-ren-cong {sp = ∙} p = refl
   <>-ren-cong {sp = x , sp} p = cong₂ _,_ ([]-ren-cong {t = x} p) (<>-ren-cong p)
@@ -193,9 +187,8 @@ mutual
 
 -- 2. The pre-renaming rule
 mutual
-  []-pre-ren : ∀{Γ Δ Ω α β}{t : Nf Γ α}{ρ : Ren Γ Δ}{σ : Ren Δ (Ω , β)}{u : Nf Ω β} → 
-    (renNf t ρ) [ σ , u ] ≡ t [ σ ∘ ρ , u ]
-  []-pre-ren {t = tt} = refl
+  []-pre-ren : ∀{Γ Δ Ω α β}{t : SNf Γ α}{ρ : Ren Γ Δ}{σ : Ren Δ (Ω , β)}{u : SNf Ω β} → 
+    (renSNf t ρ) [ σ , u ] ≡ t [ σ ∘ ρ , u ]
   []-pre-ren {t = lam t} = cong lam 
     (trans ([]-pre-ren {t = t}) 
     ([]-ren-cong {t = t} (cong sw (sym ext-∘))))
@@ -203,7 +196,7 @@ mutual
   ... | vz = cong₂ _$_ refl (<>-pre-ren {sp = sp})
   ... | vs y = cong (λ z → neu (y , z)) <>-pre-ren
   
-  <>-pre-ren : ∀{Γ Δ Ω α β γ}{sp : Sp Γ α γ}{ρ : Ren Γ Δ}{σ : Ren Δ (Ω , β)}{u : Nf Ω β} → 
+  <>-pre-ren : ∀{Γ Δ Ω α β γ}{sp : Sp Γ α γ}{ρ : Ren Γ Δ}{σ : Ren Δ (Ω , β)}{u : SNf Ω β} → 
     (renSp sp ρ) < σ , u > ≡ sp < σ ∘ ρ , u >
   <>-pre-ren {sp = ∙} = refl
   <>-pre-ren {sp = t , sp} = cong₂ _,_ ([]-pre-ren {t = t}) <>-pre-ren
@@ -211,15 +204,14 @@ mutual
 
 -- 3. The post-renaming rule
 mutual
-  []-post-ren : ∀{Γ Δ Ω α β}(t : Nf Γ α)(ρ : Ren Γ (Δ , β))(u : Nf Δ β) →
-    (σ : Ren Δ Ω) → t [ ext σ ∘ ρ , renNf u σ ] ≡ renNf (t [ ρ , u ]) σ 
-  []-post-ren tt ρ u σ = refl
+  []-post-ren : ∀{Γ Δ Ω α β}(t : SNf Γ α)(ρ : Ren Γ (Δ , β))(u : SNf Δ β) →
+    (σ : Ren Δ Ω) → t [ ext σ ∘ ρ , renSNf u σ ] ≡ renSNf (t [ ρ , u ]) σ 
   []-post-ren (lam t) ρ u σ = cong lam 
     (trans 
       (trans ([]-ren-cong {t = t} ren-lem) 
       (cong (λ z → t [ ext (ext σ) ∘ (sw ∘ ext ρ) , z ]) 
-      (trans (sym renNf-∘) renNf-∘))) 
-    ([]-post-ren t (sw ∘ ext ρ) (renNf u vs) (ext σ)))
+      (trans (sym renSNf-∘) renSNf-∘))) 
+    ([]-post-ren t (sw ∘ ext ρ) (renSNf u vs) (ext σ)))
     where
       ren-lem : ∀{Γ Δ Ω α β}{ρ : Ren Γ (Δ , β)}{σ : Ren Δ Ω}{β' : Ty} {x : Var (Γ , α) β'} →
         (sw ∘ ext (ext σ ∘ ρ)) x ≡ (ext (ext σ) ∘ (sw ∘ ext ρ)) x
@@ -231,33 +223,32 @@ mutual
   ... | vz = $-ren u sp ρ u σ
   ... | vs y = cong (λ z → neu (σ y , z)) (<>-post-ren sp ρ u σ)
 
-  <>-post-ren : ∀{Γ Δ Ω α β γ}(sp : Sp Γ α γ)(ρ : Ren Γ (Δ , β))(u : Nf Δ β)(σ : Ren Δ Ω) →
-    sp < ext σ ∘ ρ , renNf u σ > ≡ renSp (sp < ρ , u >) σ
+  <>-post-ren : ∀{Γ Δ Ω α β γ}(sp : Sp Γ α γ)(ρ : Ren Γ (Δ , β))(u : SNf Δ β)(σ : Ren Δ Ω) →
+    sp < ext σ ∘ ρ , renSNf u σ > ≡ renSp (sp < ρ , u >) σ
   <>-post-ren ∙ ρ u σ = refl
   <>-post-ren (t , sp) ρ u σ = cong₂ _,_ ([]-post-ren t ρ u σ) (<>-post-ren sp ρ u σ)
 
-  $-ren : ∀{Γ Δ Ω α β γ}(t : Nf Δ α)(sp : Sp Γ α γ)(ρ : Ren Γ (Δ , β))(u : Nf Δ β)(σ : Ren Δ Ω) → 
-    ((renNf t σ) $ (sp < ext σ ∘ ρ , renNf u σ >)) ≡ renNf (t $ (sp < ρ , u >)) σ
+  $-ren : ∀{Γ Δ Ω α β γ}(t : SNf Δ α)(sp : Sp Γ α γ)(ρ : Ren Γ (Δ , β))(u : SNf Δ β)(σ : Ren Δ Ω) → 
+    ((renSNf t σ) $ (sp < ext σ ∘ ρ , renSNf u σ >)) ≡ renSNf (t $ (sp < ρ , u >)) σ
   $-ren t ∙ ρ u σ = refl
   $-ren t (s , sp) ρ u σ = 
     trans 
-      (cong (λ z → z $ (sp < ext σ ∘ ρ , renNf u σ >)) 
-        (trans (cong (λ z → napp (renNf t σ) z) ([]-post-ren s ρ u σ)) (napp-ren t (s [ ρ , u ]) σ)))
+      (cong (λ z → z $ (sp < ext σ ∘ ρ , renSNf u σ >)) 
+        (trans (cong (λ z → napp (renSNf t σ) z) ([]-post-ren s ρ u σ)) (napp-ren t (s [ ρ , u ]) σ)))
     ($-ren (napp t (s [ ρ , u ])) sp ρ u σ)
 
-  napp-ren : ∀{Γ Δ α β}(s : Nf Γ (α ⇒ β))(t : Nf Γ α)(ρ : Ren Γ Δ) →
-    napp (renNf s ρ) (renNf t ρ) ≡ renNf (napp s t) ρ
+  napp-ren : ∀{Γ Δ α β}(s : SNf Γ (α ⇒ β))(t : SNf Γ α)(ρ : Ren Γ Δ) →
+    napp (renSNf s ρ) (renSNf t ρ) ≡ renSNf (napp s t) ρ
   napp-ren (lam s) t ρ = trans ([]-pre-ren {t = s}) ([]-post-ren s id t ρ)
 
 -------------------------------------
 
 -- 4. Normalization commutes with renaming
 nf-ren : ∀{Γ Δ α} → (t : Tm Γ α) → (ρ : Ren Γ Δ) →
-  nf (ren t ρ) ≡ renNf (nf t) ρ
-nf-ren tt ρ = refl
+  snf (ren t ρ) ≡ renSNf (snf t) ρ
 nf-ren {α = α} (var x) ρ = sym (nvar-ren x ρ)
 nf-ren (lam t) ρ rewrite nf-ren t (ext ρ) = refl
-nf-ren (app s t) ρ = trans (cong₂ napp (nf-ren s ρ) (nf-ren t ρ)) (napp-ren (nf s) (nf t) ρ)
+nf-ren (app s t) ρ = trans (cong₂ napp (nf-ren s ρ) (nf-ren t ρ)) (napp-ren (snf s) (snf t) ρ)
 
 -------------------------------------
 
@@ -265,9 +256,8 @@ nf-ren (app s t) ρ = trans (cong₂ napp (nf-ren s ρ) (nf-ren t ρ)) (napp-ren
 -- Weaken a term then do a substitution on the weakened variable
 -- is the same as doing nothing
 mutual
-  []-vs-id : ∀{Γ Δ α β}(u : Nf Γ α)(ρ : Ren Γ Δ)(t : Nf Δ β) → 
-    u [ vs ∘ ρ , t ] ≡ renNf u ρ
-  []-vs-id tt ρ t = refl
+  []-vs-id : ∀{Γ Δ α β}(u : SNf Γ α)(ρ : Ren Γ Δ)(t : SNf Δ β) → 
+    u [ vs ∘ ρ , t ] ≡ renSNf u ρ
   []-vs-id (lam u) ρ t = cong lam (trans ([]-ren-cong {t = u} lem) ([]-vs-id _ _ _))
     where
       lem : ∀{Γ Δ α β γ}{ρ : Ren Γ Δ}{x : Var (Γ , α) γ} → 
@@ -276,7 +266,7 @@ mutual
       lem {x = vs x} = refl
   []-vs-id (neu (x , sp)) ρ t rewrite <>-vs-id sp ρ t = refl
 
-  <>-vs-id : ∀{Γ Δ α1 α2 β}(sp : Sp Γ α1 α2)(ρ : Ren Γ Δ)(t : Nf Δ β) → 
+  <>-vs-id : ∀{Γ Δ α1 α2 β}(sp : Sp Γ α1 α2)(ρ : Ren Γ Δ)(t : SNf Δ β) → 
     sp < vs ∘ ρ , t > ≡ renSp sp ρ
   <>-vs-id ∙ ρ t = refl
   <>-vs-id (x , sp) ρ t = cong₂ _,_ ([]-vs-id _ _ _) (<>-vs-id _ _ _)
@@ -286,8 +276,8 @@ mutual
 -- This is about how to correctly swap the order of two consecutive substitutions
 
 -- a special case of post-renaming rule
-[]-post-ren-wk : ∀{Γ Δ α β γ}{t : Nf Γ α}{ρ : Ren Γ (Δ , β)}{u : Nf Δ β} → 
-  wkNf {α = γ} (t [ ρ , u ]) ≡ (wkNf t) [ sw ∘ ext ρ , wkNf u ]
+[]-post-ren-wk : ∀{Γ Δ α β γ}{t : SNf Γ α}{ρ : Ren Γ (Δ , β)}{u : SNf Δ β} → 
+  wkSNf {α = γ} (t [ ρ , u ]) ≡ (wkSNf t) [ sw ∘ ext ρ , wkSNf u ]
 []-post-ren-wk {t = t} {ρ = ρ} = 
   trans (sym ([]-post-ren t _ _ _)) 
   (trans ([]-ren-cong {t = t} (sw-ext {ρ = ρ})) (sym ([]-pre-ren {t = t})))
@@ -296,24 +286,23 @@ mutual
 mutual
   []-comm : 
     ∀{Γ Δ Ω α β1 β2}
-    (s : Nf Γ α)(ρ : Ren Γ (Δ , β1))(t : Nf Δ β1)
-    (σ : Ren Δ (Ω , β2))(u : Nf Ω β2) → 
+    (s : SNf Γ α)(ρ : Ren Γ (Δ , β1))(t : SNf Δ β1)
+    (σ : Ren Δ (Ω , β2))(u : SNf Ω β2) → 
       (s [ ρ , t ]) [ σ , u ] 
-    ≡ (s [ (sw ∘ ext σ ∘ ρ) , wkNf u ] )  [ id , t [ σ , u ] ]
-  []-comm tt ρ t σ u = refl
+    ≡ (s [ (sw ∘ ext σ ∘ ρ) , wkSNf u ] )  [ id , t [ σ , u ] ]
   []-comm (lam s) ρ t σ u = 
     cong lam 
     (trans ([]-comm s _ _ _ _) 
     (trans (cong
-      (λ z → (s [ sw ∘ ext (sw ∘ ext σ) ∘ sw ∘ ext ρ , wkNf (wkNf u) ]) [ id , z ])
+      (λ z → (s [ sw ∘ ext (sw ∘ ext σ) ∘ sw ∘ ext ρ , wkSNf (wkSNf u) ]) [ id , z ])
       (sym ([]-post-ren-wk {t = t}) )) 
     (trans 
       (cong (λ z → z [ id , _ ]) 
       (trans ([]-ren-cong {t = s} lem1) 
       (trans (cong (λ z → s [ _ , z ]) 
-        (trans (sym renNf-∘) 
-        (trans (renNf-cong lem2) 
-        (trans renNf-∘ renNf-∘))))
+        (trans (sym renSNf-∘) 
+        (trans (renSNf-cong lem2) 
+        (trans renSNf-∘ renSNf-∘))))
       ([]-post-ren s _ _ _))))
     ([]-pre-ren {t = s [ _ , _ ]} ) )))
     where 
@@ -340,24 +329,24 @@ mutual
     = refl
   ... | vs y with σ y
   ... | vz rewrite 
-      $-comm (renNf u vs) (sp < sw ∘ ext σ ∘ ρ , renNf u vs >) id (t [ σ , u ])
+      $-comm (renSNf u vs) (sp < sw ∘ ext σ ∘ ρ , renSNf u vs >) id (t [ σ , u ])
     | <>-comm sp ρ t σ u
     = cong (λ z → z $ ((sp < _ , _ >) < id , t [ σ , u ] >)) 
       (sym 
         (trans ([]-pre-ren {t = u}) 
-        (trans ([]-vs-id u id _) renNf-id)))
+        (trans ([]-vs-id u id _) renSNf-id)))
   ... | vs z rewrite <>-comm sp ρ t σ u = refl
 
   <>-comm : 
     ∀{Γ Δ Ω α1 α2 β1 β2}
-      (sp : Sp Γ α1 α2)(ρ : Ren Γ (Δ , β1))(t : Nf Δ β1)
-      (σ : Ren Δ (Ω , β2))(u : Nf Ω β2) → 
+      (sp : Sp Γ α1 α2)(ρ : Ren Γ (Δ , β1))(t : SNf Δ β1)
+      (σ : Ren Δ (Ω , β2))(u : SNf Ω β2) → 
       (sp < ρ , t >) < σ , u > 
-    ≡ (sp < (sw ∘ ext σ ∘ ρ) , wkNf u >) < id , t [ σ , u ] >
+    ≡ (sp < (sw ∘ ext σ ∘ ρ) , wkSNf u >) < id , t [ σ , u ] >
   <>-comm ∙ ρ t σ u = refl
   <>-comm (s , sp) ρ t σ u = cong₂ _,_ ([]-comm s _ _ _ _) (<>-comm sp _ _ _ _)
 
-  $-comm : ∀{Γ Δ α1 α2 β}(s : Nf Γ α1)(sp : Sp Γ α1 α2)(ρ : Ren Γ (Δ , β))(t : Nf Δ β) → 
+  $-comm : ∀{Γ Δ α1 α2 β}(s : SNf Γ α1)(sp : Sp Γ α1 α2)(ρ : Ren Γ (Δ , β))(t : SNf Δ β) → 
     (s $ sp) [ ρ , t ] ≡ (s [ ρ , t ]) $ (sp < ρ , t >)
   $-comm s ∙ ρ t = refl
   $-comm s (x , sp) ρ t rewrite 
@@ -365,6 +354,6 @@ mutual
     | napp-comm s x ρ t
     = refl
 
-  napp-comm : ∀{Γ Δ α β γ}(s : Nf Γ (α ⇒ β))(t : Nf Γ α)(ρ : Ren Γ (Δ , γ))(u : Nf Δ γ) → 
+  napp-comm : ∀{Γ Δ α β γ}(s : SNf Γ (α ⇒ β))(t : SNf Γ α)(ρ : Ren Γ (Δ , γ))(u : SNf Δ γ) → 
     (napp s t) [ ρ , u ] ≡ napp (s [ ρ , u ]) (t [ ρ , u ])
   napp-comm (lam s) t ρ u = []-comm s id _ _ _
